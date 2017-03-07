@@ -1,0 +1,6 @@
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\bin\Release\ked.exe.config
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\bin\Release\ked.exe
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\bin\Release\ked.pdb
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\bin\Release\Sprache.dll
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\obj\Release\ked.exe
+C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\obj\Release\ked.pdb
