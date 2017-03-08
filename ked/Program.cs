@@ -62,9 +62,17 @@ namespace ked
             this.Not = (n == '!');
         }
 
+        /// <summary>
+        /// Verbが０のとき空文字列を出力するように訂正
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
-            return this.Start + this.Option.Verb +  this.Option.Object + (this.Not? "!": "");
+            return 
+                this.Start + 
+                ( (this.Option.Verb == 0)? "" : this.Option.Verb.ToString() ) +  
+                this.Option.Object + 
+                (this.Not? "!": "");
         }
 
         public string ExtractCommand(string script)
@@ -246,11 +254,12 @@ namespace ked
                     {
                         if (arg.StartsWith("-")) CautionDosentHaveArg(option);
 
+                        option.Add(arg);
                         nextIsOption = false;
                     }
                     else if (File.Exists(arg)) path.Add(arg);
                     else if (IsScript(arg)) script.Add(TrimSingleQuotation(arg));
-                    else Console.WriteLine("ked detect illegal arg:" + arg);
+                    else script.Add(arg);
                 }
                 if (nextIsOption) CautionDosentHaveArg(option); //オプションがないときは注意。
 
@@ -280,13 +289,20 @@ namespace ked
                 bool silentMode = false;
 
                 // option解釈（普通編:逐次解釈するものはこちらへ）
+                bool nextLoopSkip = false;
                 foreach (string op in option.ToArray())
                 {
+                    if (nextLoopSkip)
+                    {
+                        nextLoopSkip = false;
+                        continue;
+                    }
                     switch(op)
                     {
                         case "e":
                             string opArg;   // Option argment
-                            if (string.IsNullOrEmpty(opArg = GetOptionArg(option, "e"))) enc = Encoding.GetEncoding(opArg);
+                            if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, "e"))) enc = Encoding.GetEncoding(opArg);
+                            nextLoopSkip = true;    //次はオプションなのでスキップする。
                             break;
 
                         case "n":
@@ -294,10 +310,12 @@ namespace ked
                             break;
 
                         default:
-                            Console.WriteLine("{0} is illigall option! :-<");
+                            Console.WriteLine("{0} is illigall option! :-<", op);
                             break;
                     }
                 }
+
+                Console.OutputEncoding = enc;
 
                 // input 抽出
                 ExtractInput(path, input, enc);
@@ -501,7 +519,9 @@ namespace ked
 
             if (tmp == -1 || tmp + 1 >= option.Count) return string.Empty;
 
-            return   option[option.IndexOf(op) + 1];
+            string ret = option[option.IndexOf(op) + 1];
+            option.Remove(ret);
+            return ret;
         }
 
         /// <summary>

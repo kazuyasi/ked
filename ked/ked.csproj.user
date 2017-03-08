@@ -3,4 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartArguments>%275d%27 %270,%24s/h/H/%27 ./aaa.txt ./ccc.csv ./bbbtxt</StartArguments>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <StartArguments>-d %273d%27 ./hoge.txt</StartArguments>
+  </PropertyGroup>
 </Project>
