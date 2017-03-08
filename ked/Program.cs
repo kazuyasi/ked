@@ -263,7 +263,7 @@ namespace ked
                 }
                 if (nextIsOption) CautionDosentHaveArg(option); //オプションがないときは注意。
 
-                Encoding enc = Encoding.GetEncoding("shift-jis");
+                Encoding enc = Encoding.GetEncoding("utf-8");
 
                 // option解釈（特殊編：returnするものは優先度順にこちらへ）
                 if (option.Contains("d"))
@@ -287,6 +287,7 @@ namespace ked
                 }
 
                 bool silentMode = false;
+                bool rulerMode = false;
 
                 // option解釈（普通編:逐次解釈するものはこちらへ）
                 bool nextLoopSkip = false;
@@ -307,6 +308,10 @@ namespace ked
 
                         case "n":
                             silentMode = true;
+                            break;
+
+                        case "r":
+                            rulerMode = true;
                             break;
 
                         default:
@@ -383,8 +388,15 @@ namespace ked
                 }
 
                 StringBuilder sb = new StringBuilder();
+                int lineNum = 0;
                 foreach (string line in patternSpace.ToArray())
                 {
+                    if (rulerMode)
+                    {
+                        sb.Append(lineNum++.ToString("D6"));
+                        sb.Append(" ");
+                    }
+
                     sb.AppendLine(line);
                 }
 
