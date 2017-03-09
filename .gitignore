@@ -2,3 +2,5 @@
 *.dll
 ked/bin/
 ked/obj/
+.vs/
+packages/
