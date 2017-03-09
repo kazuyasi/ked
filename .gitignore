@@ -1,0 +1,4 @@
+*.exe
+*.dll
+ked/bin/
+ked/obj/
