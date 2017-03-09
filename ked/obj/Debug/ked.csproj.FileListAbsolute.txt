@@ -1,6 +1,0 @@
-c:\users\kazuya\documents\visual studio 2015\Projects\ked\ked\bin\Debug\ked.exe.config
-c:\users\kazuya\documents\visual studio 2015\Projects\ked\ked\bin\Debug\ked.exe
-c:\users\kazuya\documents\visual studio 2015\Projects\ked\ked\bin\Debug\ked.pdb
-c:\users\kazuya\documents\visual studio 2015\Projects\ked\ked\obj\Debug\ked.exe
-c:\users\kazuya\documents\visual studio 2015\Projects\ked\ked\obj\Debug\ked.pdb
-C:\Users\kazuya\Documents\Visual Studio 2015\Projects\ked\ked\bin\Debug\Sprache.dll
