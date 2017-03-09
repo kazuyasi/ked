@@ -2,7 +2,7 @@
 kedはWindows上で動くsedライクなEditorを目指しています。
 
 ## 使い方
-./ked.exe option  inputfile script
+``./ked.exe option  inputfile script``
 
 * option:-で始まる一文字アルファベット。
 * inputfile:入力したいテキストファイル。複数選択可能。
