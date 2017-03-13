@@ -80,42 +80,101 @@ namespace ked
             return script.Substring(this.ToString().Length);
         }
 
+        /// <summary>
+        /// 対象のアドレス指定子をインデックスに変換する
+        /// </summary>
+        /// <param name="target">アドレス指定子</param>
+        /// <param name="input">入力文字列</param>
+        /// <returns>インデックス</returns>
+        private int[] ConvertToIndex(string target, List<string> input)
+        {
+            if(string.IsNullOrEmpty(target)) return new int[] { -1 };
+
+            if (target == "$") return new int[] { input.Count - 1 };
+            else if (target.StartsWith("/") && target.EndsWith("/"))
+            {
+                List<int> ret = new List<int>();
+
+                Regex rPattern = new Regex(target.Substring(1, target.Length - 2));
+
+                for(int i = 0; i < input.Count; i++)
+                {
+                    if (rPattern.IsMatch(input[i])) ret.Add(i);
+                }
+
+                return ret.ToArray();
+            }
+            else
+            {
+                int idx;
+
+                if(int.TryParse(target, out idx))
+                {
+                    return new int[] { idx };
+                }
+            }
+
+            return new int[] { -1 };
+        }
+
+        /// <summary>
+        /// 対象の配列がnullか空なら真を返す
+        /// </summary>
+        /// <param name="target">対象のint配列</param>
+        /// <returns>対象がnullか空か</returns>
+        private bool IsNullOrEmpty(int[] target)
+        {
+            if (target == null) return true;
+            if (target[0] == -1) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// アドレス指定子が指し示すインデックスを取得する
+        /// </summary>
+        /// <param name="input">入力文字列群</param>
+        /// <returns>アドレス指定子が指し示すインデックス群</returns>
         public int[] GetIndex(List<string> input)
         {
             List<int> ret = new List<int>();
-            int end = input.Count - 1;
 
-            if (Start == "$") ret.Add(end);
-            if (Start != "$" && Option.Verb == 0) ret.Add(int.Parse(Start));
-            if (Start != "$" && Option.Verb == ',')
+            //retへの変数を一度決める
+            int[] startIdx = ConvertToIndex(Start, input);
+            int[] objectIdx = ConvertToIndex(Option.Object, input);
+
+            if (IsNullOrEmpty(startIdx)) return null;
+
+            if (Option.Verb == 0)
             {
-                int endidx = (Option.Object == "$") ? end : int.Parse(Option.Object);
-
-                for (int i = int.Parse(Start); i <= endidx; i++)
+                foreach (int s in startIdx)
+                {
+                    ret.Add(s);
+                }
+            }
+            else if (IsNullOrEmpty(objectIdx)) return null;
+            else if (Option.Verb == ',')
+            {
+                for(int i = startIdx[0]; i <= objectIdx[objectIdx.Length - 1]; i++)
                 {
                     ret.Add(i);
                 }
             }
-            if (Start != "$" && !Not && Option.Verb == '~')
+            else if (Option.Verb == '~')
             {
-                if (Option.Object == "$") throw new ArgumentException();
-
-
-                int step = int.Parse(Option.Object);
-
-                for(int i = int.Parse(Start); i <= end; i += step)
+                for (int i = startIdx[0]; i < input.Count; i += objectIdx[0])
                 {
                     ret.Add(i);
                 }
             }
 
             //Notがあるなら否定で返す。
-            if(Not)
+            if (Not)
             {
                 List<int> tmp = new List<int>();
 
                 //全集合
-                for (int i = 0; i <= end; i++)
+                for (int i = 0; i < input.Count; i++)
                 {
                     tmp.Add(i);
                 }
@@ -196,15 +255,30 @@ namespace ked
         /// Addressとなる数字か＄をパースするパーサ。
         /// "100$"などは正常にパースしてしまう……。警告できない。
         /// </summary>
-        static readonly Parser<string> AddressNumber = digit.Or(Parse.String("$").Text());
+        static readonly Parser<string> AddressNumber = digit.XOr(Parse.String("$").Text());
 
+        /// <summary>
+        /// パターンマッチングによるアドレス指定
+        /// </summary>
+        static readonly Parser<string> PatternAddress =
+            from slash1 in Parse.Char('/')
+            from pattern in Text
+            from slash2 in Parse.Char('/')
+            select slash1 + pattern + slash2;
+
+        /// <summary>
+        /// アドレス指定子のオプションパーサー
+        /// </summary>
         static readonly Parser<OptionAddress> OptionAddress =
             from commma in Parse.Char(',').Or(Parse.Char('~'))
-            from argNum in AddressNumber
+            from argNum in AddressNumber.XOr(PatternAddress)
             select new OptionAddress(commma, argNum);
 
+        /// <summary>
+        /// アドレス指定子のパーサー
+        /// </summary>
         static readonly Parser<Address> AddressText =
-            from startAddress in AddressNumber
+            from startAddress in AddressNumber.XOr(PatternAddress)
             from option in OptionAddress.XOr<OptionAddress>(Parse.Return(new OptionAddress()))
             from not in Parse.String("!").Text().XOr(Parse.Return(""))
             select new Address(startAddress, option, not);
@@ -252,7 +326,7 @@ namespace ked
             List<string> input = new List<string>();
             List<string> patternSpace = new List<string>();
 
-            //var test = ArgumentCommandAt.TryParse("s@//@kkk@");
+            //var test = AddressText.TryParse("1,/bbb/");
             //if (test.WasSuccessful) Console.WriteLine(test.Value);
 
             // args を　入力パス、オプション、スクリプトの3つに分ける。
