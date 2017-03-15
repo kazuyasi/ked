@@ -245,9 +245,19 @@ namespace ked
 
     class Program
     {
+        /// <summary>
+        /// 数字を取り出すパーサー
+        /// </summary>
         static readonly Parser<string> digit = Parse.Digit.AtLeastOnce().Text();
 
+        /// <summary>
+        /// デリミタ以外のテキストを取り出すパーサー。ここではテキストは'/'以外のすべてのテキストを指す。
+        /// </summary>
         static readonly Parser<string> Text = Parse.CharExcept('/').AtLeastOnce().Text();
+
+        /// <summary>
+        /// デリミタ以外のテキストを取り出すパーサー。
+        /// </summary>
         static readonly Parser<string> TextAt = Parse.CharExcept('@').AtLeastOnce().Text();
 
 
@@ -283,6 +293,9 @@ namespace ked
             from not in Parse.String("!").Text().XOr(Parse.Return(""))
             select new Address(startAddress, option, not);
 
+        /// <summary>
+        /// スクリプトの構文解析をするパーサー。ただ、コマンドはXor XorでつなぐとNG。
+        /// </summary>
         static readonly Parser<Script> ScriptText =
             from ad in AddressText
             from cmd in NoArgumentCommand.XOr(ArgumentCommand).Or(ArgumentCommandAt)
@@ -322,7 +335,7 @@ namespace ked
 
         static void Main(string[] args)
         {
-            ReadOnlyCollection<string> OPTION_HAS_ARG = Array.AsReadOnly(new string[] { "e" });
+            ReadOnlyCollection<string> OPTION_HAS_ARG = Array.AsReadOnly(new string[] { "e", "h", "t" });
             List<string> path = new List<string>();
             List<string> option = new List<string>();
             List<string> script = new List<string>();
@@ -399,6 +412,8 @@ namespace ked
 
                 bool silentMode = false;
                 bool rulerMode = false;
+                int tail = -1;  //tail引数。最終何行を読み出すか
+                int head = -1;  //head引数、頭何行を読み出すか
 
                 // option解釈（普通編:逐次解釈するものはこちらへ）
                 bool nextLoopSkip = false;
@@ -409,12 +424,12 @@ namespace ked
                         nextLoopSkip = false;
                         continue;
                     }
-                    switch(op)
+
+                    string opArg;   // Option argment
+                    switch (op)
                     {
                         case "e":
-                            string opArg;   // Option argment
-                            if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, "e"))) enc = Encoding.GetEncoding(opArg);
-                            nextLoopSkip = true;    //次はオプションなのでスキップする。
+                            if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, op))) enc = Encoding.GetEncoding(opArg);
                             break;
 
                         case "n":
@@ -425,10 +440,20 @@ namespace ked
                             rulerMode = true;
                             break;
 
+                        case "t":
+                            if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, op))) tail = int.Parse(opArg);
+                            break;
+
+                        case "h":
+                            if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, op))) head = int.Parse(opArg);
+                            break;
+
                         default:
                             Console.WriteLine("{0} is illigall option! :-<", op);
                             break;
                     }
+
+                    if (OPTION_HAS_ARG.Contains(op)) nextLoopSkip = true;   //次はオプション引数なのでスキップ
                 }
 
                 // OutputEncodingにUnicodeEncoding型を代入するとNG
@@ -490,6 +515,30 @@ namespace ked
                                 break;
                         }
                     }
+
+                    //次のスクリプトを解釈する時、前回のパターンスペースをインプットとする。
+                    input = patternSpace;
+                }
+
+                //head,tailの制御
+                if (head > 0)
+                {
+                    List<string> tmp = new List<string>();
+                    for (int i = 0; i < head; i++)
+                    {
+                        if (i < patternSpace.Count) tmp.Add(patternSpace[i]);
+                    }
+                    patternSpace = tmp;
+                }
+                if(tail > 0)
+                {
+                    List<string> tmp = new List<string>();
+                    for (int i = 0; i < tail; i++)
+                    {
+                        if (i < patternSpace.Count) tmp.Add(patternSpace[patternSpace.Count - i - 1]);
+                    }
+                    tmp.Reverse();
+                    patternSpace = tmp;
                 }
 
                 StringBuilder sb = new StringBuilder();

@@ -4,6 +4,6 @@
     <StartArguments>%275d%27 %270,%24s/h/H/%27 ./aaa.txt ./ccc.csv ./bbbtxt</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
-    <StartArguments>0,%24s%40//%40kkk%40 ./text.txt</StartArguments>
+    <StartArguments>0,2d ./hoge.txt</StartArguments>
   </PropertyGroup>
 </Project>
