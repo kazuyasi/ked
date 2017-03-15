@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Sprache;
 using System.Text.RegularExpressions;
+using Hnx8.ReadJEnc;
 
 namespace ked
 {
@@ -245,7 +246,6 @@ namespace ked
     class Program
     {
         static readonly Parser<string> digit = Parse.Digit.AtLeastOnce().Text();
-        static readonly Parser<IEnumerable<string>> digits = digit.Many();
 
         static readonly Parser<string> Text = Parse.CharExcept('/').AtLeastOnce().Text();
         static readonly Parser<string> TextAt = Parse.CharExcept('@').AtLeastOnce().Text();
@@ -307,6 +307,9 @@ namespace ked
             from delimiter3 in Parse.Char('/')
             select new Command(cmd, text1, text2);
 
+        /// <summary>
+        /// 引数をとるコマンドのパーサー。＠版。
+        /// </summary>
         static readonly Parser<Command> ArgumentCommandAt =
             from cmd in Parse.Chars("rs".ToCharArray())
             from delimiter1 in Parse.Char('@')
@@ -356,7 +359,22 @@ namespace ked
                 }
                 if (nextIsOption) CautionDosentHaveArg(option); //オプションがないときは注意。
 
+                // Encoding解釈(日本語:path[0]優先)
                 Encoding enc = Encoding.GetEncoding("utf-8");
+                if (path.Count != 0)
+                {
+                    FileInfo fi = new FileInfo(path[0]);
+                    using (FileReader fr = new FileReader(fi))
+                    {
+                        //日本語優先でエンコード判別
+                        fr.ReadJEnc = ReadJEnc.JP;
+                        CharCode cc = fr.Read(fi);
+
+                        //エンコード判別に成功したならエンコードを上書き
+                        var tmp = cc.GetEncoding();
+                        if (tmp != null) enc = tmp;
+                    }
+                }
 
                 // option解釈（特殊編：returnするものは優先度順にこちらへ）
                 if (option.Contains("d"))
@@ -413,7 +431,8 @@ namespace ked
                     }
                 }
 
-                Console.OutputEncoding = enc;
+                // OutputEncodingにUnicodeEncoding型を代入するとNG
+                if(! (enc is UnicodeEncoding) ) Console.OutputEncoding = enc;
 
                 // input 抽出
                 ExtractInput(path, input, enc);
@@ -564,12 +583,48 @@ namespace ked
         /// <summary>
         /// 標準入力と入力パスから入力文字列を抽出する。
         /// </summary>
-        /// <param name="path"></param>
-        /// <param name="input"></param>
-        /// <param name="enc"></param>
+        /// <param name="path">入力となる指定パス</param>
+        /// <param name="input">出力先</param>
+        /// <param name="enc">エンコード</param>
         private static void ExtractInput(List<string> path, List<string> input, Encoding enc)
         {
             
+            // pathが存在するならテキストファイルとして指定エンコードで読み込む。
+            if (path.Count != 0)
+            {
+                foreach (string p in path.ToArray())
+                {
+                    using (StreamReader sr = new StreamReader(p, enc))
+                    {
+                        while (sr.Peek() != -1)
+                        {
+                            input.Add(sr.ReadLine());
+                        }
+                    }
+                }
+            }
+            else
+            {
+                using (TextReader tr = Console.In)
+                {
+                    string line;
+                    while ((line = tr.ReadLine()) != null)
+                    {
+                        input.Add(line);
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 標準入力と入力パスから入力文字列を抽出する。
+        /// </summary>
+        /// <param name="path">入力となる指定パス</param>
+        /// <param name="input">出力先</param>
+        /// <param name="enc">エンコード</param>
+        private static void ExtractInput(List<string> path, List<string> input, UnicodeEncoding enc)
+        {
+
             // pathが存在するならテキストファイルとして指定エンコードで読み込む。
             if (path.Count != 0)
             {
