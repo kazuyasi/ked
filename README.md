@@ -11,7 +11,10 @@ kedはWindows上で動くsedライクなCUI Editorを目指しています。上
 最終行以外のpiyoを削除します。  
 
 ## ライセンス  
- ライブラリとしてsprache(Nicholas Blumhardt氏制作：https://github.com/sprache/Sprache)、ReadJEnc(hnx8氏制作：http://hp.vector.co.jp/authors/VA055804/)  を使用しています。
+ライブラリとして  
+ sprache(Nicholas Blumhardt氏制作：https://github.com/sprache/Sprache)  
+ ReadJEnc(hnx8氏制作：http://hp.vector.co.jp/authors/VA055804/)  
+を使用しています。
  
  
 ## 使い方
