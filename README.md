@@ -10,6 +10,10 @@ kedはWindows上で動くsedライクなCUI Editorを目指しています。上
 ``./ked.exe ./hoge.txt $!s/piyo//``  
 最終行以外のpiyoを削除します。  
 
+## ライセンス  
+ ライブラリとしてsprache(Nicholas Blumhardt氏制作：https://github.com/sprache/Sprache)、ReadJEnc(hnx8氏制作：http://hp.vector.co.jp/authors/VA055804/)  を使用しています。
+ 
+ 
 ## 使い方
 ``./ked.exe option  inputfile script``
 
@@ -23,12 +27,21 @@ sedと基本同じです。数字で記入します。0始まりです。＄有�
 * $:最終行を指します。
 * 5!:６行目以外の行を指し示します。
 * 0~2:奇数行を指定します。
+* /hoge/:hogeを含む行を指定します。正規表現対応（/以外）。
 
-### コマンド
+### コマンド  
+コマンドは任意デリミタに対応しています。指定場所のcharがデリミタになります。
 * d:指定アドレスを削除します。
 * p:指定アドレスを表示します。普通-nオプションとともに使用します。
 * s/old/new/:指定アドレスのoldをnewに置き換えます。正規表現未対応コマンド。
+* r/old/new/:指定アドレスのoldをnewに置き換えます。正規表現対応コマンド。
+* i text:指定アドレスの前に１行textを追加します。
+* a text:指定アドレスの後に１行textを追加します。
+* c text:指定アドレスを１行まるごとtextに置き換えます。
 
 ### オプション
 * -e encoding:文字コードをencodingにします。
-* -n:すべての表示を切り替えます。
+* -n:表示を抑制します。
+* -r:先頭に行数を表示します。
+* -h int:int行だけ先頭を表示します。
+* -t int:int行だけ末尾を表示します。
