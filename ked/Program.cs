@@ -99,6 +99,8 @@ namespace ked
 
                 if(int.TryParse(target, out idx))
                 {
+                    idx = (idx < input.Count) ? idx : (input.Count - 1);
+
                     return new int[] { idx };
                 }
             }
@@ -144,6 +146,8 @@ namespace ked
             else if (IsNullOrEmpty(objectIdx)) return null;
             else if (Option.Verb == ',')
             {
+                if (startIdx[0] > objectIdx[objectIdx.Length - 1]) return null; 
+
                 for(int i = startIdx[0]; i <= objectIdx[objectIdx.Length - 1]; i++)
                 {
                     ret.Add(i);
@@ -226,14 +230,6 @@ namespace ked
             this.TargetText = text1;
             this.ReplaceText = text2;
         }
-
-        public override string ToString()
-        {
-            return (this.Operation == 's')? 
-                this.Operation + "/" + this.TargetText + "/" + this.ReplaceText + "/" :
-                this.Operation.ToString();
-        }
-
         
     }
 
@@ -243,17 +239,6 @@ namespace ked
         /// 数字を取り出すパーサー
         /// </summary>
         static readonly Parser<string> digit = Parse.Digit.AtLeastOnce().Text();
-
-        /// <summary>
-        /// デリミタ以外のテキストを取り出すパーサー。ここではテキストは'/'以外のすべてのテキストを指す。
-        /// </summary>
-        static readonly Parser<string> Text = Parse.CharExcept('/').AtLeastOnce().Text();
-
-        /// <summary>
-        /// デリミタ以外のテキストを取り出すパーサー。
-        /// </summary>
-        static readonly Parser<string> TextAt = Parse.CharExcept('@').AtLeastOnce().Text();
-
 
         /// <summary>
         /// Addressとなる数字か＄をパースするパーサ。
@@ -266,7 +251,7 @@ namespace ked
         /// </summary>
         static readonly Parser<string> PatternAddress =
             from slash1 in Parse.Char('/')
-            from pattern in Text
+            from pattern in Parse.CharExcept('/').AtLeastOnce().Text()
             from slash2 in Parse.Char('/')
             select slash1 + pattern + slash2;
 
@@ -294,14 +279,24 @@ namespace ked
             from cmd in Parse.Chars("dp".ToCharArray()).End()
             select new Command(cmd);
 
-        static Parser<Char> DelimiterParser(string sc)
+        /// <summary>
+        /// コマンド文字列からデリミタのパーサーを取得する
+        /// </summary>
+        /// <param name="cs">コマンド文字列</param>
+        /// <returns>デリミタのパーサー</returns>
+        static Parser<Char> DelimiterParser(string cs)
         {
-            return Parse.Char(sc[1]);
+            return Parse.Char(cs[1]);
         }
 
-        static Parser<string> TextParser(string sc)
+        /// <summary>
+        /// コマンド文字列からテキスト（デリミタ以外の文字）のパーサーを取得する。
+        /// </summary>
+        /// <param name="cs">コマンド文字列</param>
+        /// <returns>テキストのパーサー</returns>
+        static Parser<string> TextParser(string cs)
         {
-            return Parse.CharExcept(sc[1]).AtLeastOnce().Text();
+            return Parse.CharExcept(cs[1]).AtLeastOnce().Text();
         }
 
         static void Main(string[] args)
@@ -458,8 +453,7 @@ namespace ked
                             from d1 in DelimiterParser(cmdTxt)
                             from txt1 in TextParser(cmdTxt)
                             from d2 in DelimiterParser(cmdTxt)
-                            from txt2 in TextParser(cmdTxt).XOr(Parse.Return(""))
-                            from d3 in DelimiterParser(cmdTxt).End()
+                            from txt2 in TextParser(cmdTxt).XOr(Parse.Return("")).End()
                             select new Command(cmd, txt1, txt2);
 
                         Parser<Command> cmdHas1ArgParser =
