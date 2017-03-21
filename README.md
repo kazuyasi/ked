@@ -7,14 +7,13 @@ kedはWindows上で動くsedライクなCUI Editorを目指しています。上
 ``./ked.exe ./hoge.txt 0~2p -n``  
 奇数行のみを表示します。  
 
-``./ked.exe ./hoge.txt $!s/piyo//``  
+``./ked.exe ./hoge.txt $!s/piyo/``  
 最終行以外のpiyoを削除します。  
 
 ## ライセンス  
-ライブラリとして  
- sprache(Nicholas Blumhardt氏制作：https://github.com/sprache/Sprache)  
- ReadJEnc(hnx8氏制作：http://hp.vector.co.jp/authors/VA055804/)  
-を使用しています。
+MITライセンスにて提供しています。ライブラリとして下記を使用しています。  
+* sprache(Nicholas Blumhardt氏制作：https://github.com/sprache/Sprache) @MITライセンス 
+* ReadJEnc(hnx8氏制作：http://hp.vector.co.jp/authors/VA055804/) @MITライセンス
  
  
 ## 使い方
@@ -36,8 +35,8 @@ sedと基本同じです。数字で記入します。0始まりです。＄有�
 コマンドは任意デリミタに対応しています。指定場所のcharがデリミタになります。
 * d:指定アドレスを削除します。
 * p:指定アドレスを表示します。普通-nオプションとともに使用します。
-* s/old/new/:指定アドレスのoldをnewに置き換えます。正規表現未対応コマンド。
-* r/old/new/:指定アドレスのoldをnewに置き換えます。正規表現対応コマンド。
+* s/old/new:指定アドレスのoldをnewに置き換えます。正規表現未対応コマンド。
+* r/old/new:指定アドレスのoldをnewに置き換えます。正規表現対応コマンド。
 * i text:指定アドレスの前に１行textを追加します。
 * a text:指定アドレスの後に１行textを追加します。
 * c text:指定アドレスを１行まるごとtextに置き換えます。
