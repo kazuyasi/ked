@@ -18,6 +18,16 @@ namespace ked
         public OptionAddress Option { private set; get; }
         public bool Not { private set; get; }
 
+        /// <summary>
+        /// 何も指定しないコンストラクタは全選択とする。
+        /// </summary>
+        public Address()
+        {
+            this.Start = "0";
+            this.Option = new OptionAddress(',', "$");
+            this.Not = false;
+        }
+
         public Address(string st)
         {
             this.Start = st;
@@ -442,96 +452,28 @@ namespace ked
                 {
                     var adResult = AddressText.TryParse(st);
 
+                    Address ad;
+                    string cmdTxt;
                     if (adResult.WasSuccessful)
                     {
-                        Address ad = adResult.Value;
+                        ad = adResult.Value;
 
-                        var cmdTxt = ad.ExtractCommand(st);
+                        cmdTxt = ad.ExtractCommand(st);
+                    }
+                    else
+                    {
+                        ad = new Address();
 
-                        Parser<Command> cmdHas2ArgParser =
-                            from cmd in Parse.Chars("rs".ToCharArray())
-                            from d1 in DelimiterParser(cmdTxt)
-                            from txt1 in TextParser(cmdTxt)
-                            from d2 in DelimiterParser(cmdTxt)
-                            from txt2 in TextParser(cmdTxt).XOr(Parse.Return("")).End()
-                            select new Command(cmd, txt1, txt2);
+                        cmdTxt = st;
+                    }
 
-                        Parser<Command> cmdHas1ArgParser =
-                            from cmd in Parse.Chars("aic".ToCharArray())
-                            from d1 in DelimiterParser(cmdTxt)
-                            from txt in TextParser(cmdTxt).XOr(Parse.Return("")).End()
-                            select new Command(cmd, txt);
+                    Parser<Command> commandParser = GetCommandParser(cmdTxt);
 
-                        Parser<Command> commandParser =
-                            NoArgumentCommand.XOr(
-                                cmdHas1ArgParser).XOr(
-                                cmdHas2ArgParser);
-
-
-                        var cmdResult = commandParser.TryParse(cmdTxt);
-                        if(cmdResult.WasSuccessful)
-                        {
-                            var idxs = ad.GetIndex(input);
-
-                            var cmd = cmdResult.Value;
-                            switch (cmd.Operation)
-                            {
-                                case 'd':
-                                    //削除は逆順に行い、順番が乱れないようにする。
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace.RemoveAt(idxs[idxs.Length - 1 - i]);
-                                    }
-                                    break;
-
-                                case 'p':
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace.Add(input[idxs[i]]);
-                                    }
-                                    break;
-
-                                case 'i':
-                                    //挿入は逆順に行い、意図どおりになるようにする
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace.Insert(idxs[idxs.Length - 1 - i], cmd.TargetText);
-                                    }
-                                    break;
-
-                                case 'a':
-                                    //挿入は逆順に行い、意図どおりになるようにする
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace.Insert(idxs[idxs.Length - 1 - i] + 1, cmd.TargetText);
-                                    }
-                                    break;
-
-                                case 'c':
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace[idxs[i]] = cmd.TargetText;
-                                    }
-                                    break;
-
-                                case 's':
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace[idxs[i]] = patternSpace[idxs[i]].Replace(cmd.TargetText, cmd.ReplaceText);
-                                    }
-                                    break;
-
-                                case 'r':
-                                    for (int i = 0; i < idxs.Length; i++)
-                                    {
-                                        patternSpace[idxs[i]] = new Regex(cmd.TargetText).Replace(patternSpace[idxs[i]], cmd.ReplaceText);
-                                    }
-                                    break;
-
-                                default:
-                                    break;
-                            }
-                        }
+                    var cmdResult = commandParser.TryParse(cmdTxt);
+                    if (cmdResult.WasSuccessful)
+                    {
+                        var idxs = ad.GetIndex(input);
+                        DispatchCommand(input, patternSpace, cmdResult, idxs);
                     }
 
                     //次のスクリプトを解釈する時、前回のパターンスペースをインプットとする。
@@ -581,6 +523,91 @@ namespace ked
             {
                 CautionUsage();
             }
+        }
+
+        private static void DispatchCommand(List<string> input, List<string> patternSpace, IResult<Command> cmdResult, int[] idxs)
+        {
+            var cmd = cmdResult.Value;
+            switch (cmd.Operation)
+            {
+                case 'd':
+                    //削除は逆順に行い、順番が乱れないようにする。
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace.RemoveAt(idxs[idxs.Length - 1 - i]);
+                    }
+                    break;
+
+                case 'p':
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace.Add(input[idxs[i]]);
+                    }
+                    break;
+
+                case 'i':
+                    //挿入は逆順に行い、意図どおりになるようにする
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace.Insert(idxs[idxs.Length - 1 - i], cmd.TargetText);
+                    }
+                    break;
+
+                case 'a':
+                    //挿入は逆順に行い、意図どおりになるようにする
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace.Insert(idxs[idxs.Length - 1 - i] + 1, cmd.TargetText);
+                    }
+                    break;
+
+                case 'c':
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace[idxs[i]] = cmd.TargetText;
+                    }
+                    break;
+
+                case 's':
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace[idxs[i]] = patternSpace[idxs[i]].Replace(cmd.TargetText, cmd.ReplaceText);
+                    }
+                    break;
+
+                case 'r':
+                    for (int i = 0; i < idxs.Length; i++)
+                    {
+                        patternSpace[idxs[i]] = new Regex(cmd.TargetText).Replace(patternSpace[idxs[i]], cmd.ReplaceText);
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private static Parser<Command> GetCommandParser(string cmdTxt)
+        {
+            Parser<Command> cmdHas2ArgParser =
+                                        from cmd in Parse.Chars("rs".ToCharArray())
+                                        from d1 in DelimiterParser(cmdTxt)
+                                        from txt1 in TextParser(cmdTxt)
+                                        from d2 in DelimiterParser(cmdTxt)
+                                        from txt2 in TextParser(cmdTxt).XOr(Parse.Return("")).End()
+                                        select new Command(cmd, txt1, txt2);
+
+            Parser<Command> cmdHas1ArgParser =
+                from cmd in Parse.Chars("aic".ToCharArray())
+                from d1 in DelimiterParser(cmdTxt)
+                from txt in TextParser(cmdTxt).XOr(Parse.Return("")).End()
+                select new Command(cmd, txt);
+
+            Parser<Command> commandParser =
+                NoArgumentCommand.XOr(
+                    cmdHas1ArgParser).XOr(
+                    cmdHas2ArgParser);
+            return commandParser;
         }
 
         /// <summary>
