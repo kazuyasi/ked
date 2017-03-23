@@ -9,6 +9,7 @@ using System.Reflection;
 using Sprache;
 using System.Text.RegularExpressions;
 using Hnx8.ReadJEnc;
+using System.Globalization;
 
 namespace ked
 {
@@ -250,6 +251,8 @@ namespace ked
         /// </summary>
         static readonly Parser<string> digit = Parse.Digit.AtLeastOnce().Text();
 
+        static bool ignoreCase = false;
+
         /// <summary>
         /// Addressとなる数字か＄をパースするパーサ。
         /// "100$"などは正常にパースしてしまう……。警告できない。
@@ -416,6 +419,10 @@ namespace ked
                             rulerMode = true;
                             break;
 
+                        case "i":
+                            ignoreCase = true;
+                            break;
+
                         case "t":
                             if (!string.IsNullOrEmpty(opArg = GetOptionArg(option, op))) tail = int.Parse(opArg);
                             break;
@@ -571,7 +578,8 @@ namespace ked
                 case 's':
                     for (int i = 0; i < idxs.Length; i++)
                     {
-                        patternSpace[idxs[i]] = patternSpace[idxs[i]].Replace(cmd.TargetText, cmd.ReplaceText);
+                        if(!ignoreCase) patternSpace[idxs[i]] = patternSpace[idxs[i]].Replace(cmd.TargetText, cmd.ReplaceText);
+                        else patternSpace[idxs[i]] = ReplaceWithIgnoreCase(patternSpace[idxs[i]], cmd.TargetText, cmd.ReplaceText);
                     }
                     break;
 
@@ -586,6 +594,43 @@ namespace ked
                     break;
             }
         }
+
+
+        /// <summary>
+        /// 大文字小文字無視して文字列を置き換える
+        /// </summary>
+        /// <param name="input">入力文字列</param>
+        /// <param name="oldv">検索する文字列</param>
+        /// <param name="newv">置換する文字列</param>
+        /// <returns>置換された文字列</returns>
+        private static string ReplaceWithIgnoreCase(string input, string oldv, string newv)
+        {
+            int currntPoint = 0;
+            int founfPoint = 0;
+            StringBuilder sb = new StringBuilder();
+
+            do
+            {
+                founfPoint = 
+                    CultureInfo.InvariantCulture.CompareInfo.IndexOf(
+                        input, oldv, currntPoint, CompareOptions.OrdinalIgnoreCase);
+
+                if(founfPoint < 0)
+                {
+                    sb.Append(input.Substring(currntPoint));
+                    break;
+                }
+
+                sb.Append(input.Substring(currntPoint, founfPoint - currntPoint));
+                sb.Append(newv);
+
+                currntPoint += founfPoint + oldv.Length;
+            } while (currntPoint < input.Length);
+
+
+            return sb.ToString();
+        }
+
 
         private static Parser<Command> GetCommandParser(string cmdTxt)
         {
