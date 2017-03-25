@@ -391,6 +391,7 @@ namespace ked
 
                 bool silentMode = false;
                 bool rulerMode = false;
+                bool inplaceMode = false;
                 int tail = -1;  //tail引数。最終何行を読み出すか
                 int head = -1;  //head引数、頭何行を読み出すか
 
@@ -419,8 +420,12 @@ namespace ked
                             rulerMode = true;
                             break;
 
-                        case "i":
+                        case "I":
                             ignoreCase = true;
+                            break;
+
+                        case "i":
+                            inplaceMode = true;
                             break;
 
                         case "t":
@@ -440,88 +445,24 @@ namespace ked
                 }
 
                 // OutputEncodingにUnicodeEncoding型を代入するとNG
-                if(! (enc is UnicodeEncoding) ) Console.OutputEncoding = enc;
+                if (!(enc is UnicodeEncoding)) Console.OutputEncoding = enc;
 
-                // input 抽出
-                ExtractInput(path, input, enc);
-
-                if (input.Count == 0)
+                if(path.Count == 0)
                 {
-                    Console.WriteLine("No input! XD");
-                    return;
+                    //標準入力を入力としてコンソールに出力する
+                    ExtractInput(input, enc);
+                    ked(script, ref input, ref patternSpace, silentMode, rulerMode, tail, head);
                 }
-
-                // パターンスペースへコピー,サイレントモードなら空のまま
-                if (!silentMode) patternSpace = input;
-
-                //スクリプトを逐次実行
-                foreach (string st in script.ToArray())
+                else
                 {
-                    var adResult = AddressText.TryParse(st);
-
-                    Address ad;
-                    string cmdTxt;
-                    if (adResult.WasSuccessful)
+                    foreach (string p in path.ToArray())
                     {
-                        ad = adResult.Value;
-
-                        cmdTxt = ad.ExtractCommand(st);
+                        //パスを入力として、inplaceModeによって出力先をファイルかコンソールか選ぶ
+                        ExtractInput(p, input, enc);
+                        ked(script, ref input, ref patternSpace, silentMode, rulerMode,  inplaceMode, tail, head, p, enc);
                     }
-                    else
-                    {
-                        ad = new Address();
-
-                        cmdTxt = st;
-                    }
-
-                    Parser<Command> commandParser = GetCommandParser(cmdTxt);
-
-                    var cmdResult = commandParser.TryParse(cmdTxt);
-                    if (cmdResult.WasSuccessful)
-                    {
-                        var idxs = ad.GetIndex(input);
-                        DispatchCommand(input, patternSpace, cmdResult, idxs);
-                    }
-
-                    //次のスクリプトを解釈する時、前回のパターンスペースをインプットとする。
-                    input = patternSpace;
                 }
-
-                //head,tailの制御
-                if (head > 0)
-                {
-                    List<string> tmp = new List<string>();
-                    for (int i = 0; i < head; i++)
-                    {
-                        if (i < patternSpace.Count) tmp.Add(patternSpace[i]);
-                    }
-                    patternSpace = tmp;
-                }
-                if(tail > 0)
-                {
-                    List<string> tmp = new List<string>();
-                    for (int i = 0; i < tail; i++)
-                    {
-                        if (i < patternSpace.Count) tmp.Add(patternSpace[patternSpace.Count - i - 1]);
-                    }
-                    tmp.Reverse();
-                    patternSpace = tmp;
-                }
-
-                StringBuilder sb = new StringBuilder();
-                int lineNum = 0;
-                foreach (string line in patternSpace.ToArray())
-                {
-                    if (rulerMode)
-                    {
-                        sb.Append(lineNum++.ToString("D6"));
-                        sb.Append(" ");
-                    }
-
-                    sb.AppendLine(line);
-                }
-
-                Console.Write(sb);
+                
 #if DEBUG
                 Console.ReadLine();
 #endif
@@ -530,6 +471,166 @@ namespace ked
             {
                 CautionUsage();
             }
+        }
+
+        private static void ked(
+            List<string> script, ref List<string> input, ref List<string> patternSpace, 
+            bool silentMode, bool rulerMode, bool inplaceMode, 
+            int tail, int head, 
+            string path, Encoding enc)
+        {
+            // パターンスペースへコピー,サイレントモードなら空のまま
+            if (!silentMode) patternSpace = input;
+
+            //スクリプトを逐次実行
+            input = DispatchScript(script, input, patternSpace);
+
+            //head,tailの制御
+            if (head > 0)
+            {
+                List<string> tmp = new List<string>();
+                for (int i = 0; i < head; i++)
+                {
+                    if (i < patternSpace.Count) tmp.Add(patternSpace[i]);
+                }
+                patternSpace = tmp;
+            }
+            if (tail > 0)
+            {
+                List<string> tmp = new List<string>();
+                for (int i = 0; i < tail; i++)
+                {
+                    if (i < patternSpace.Count) tmp.Add(patternSpace[patternSpace.Count - i - 1]);
+                }
+                tmp.Reverse();
+                patternSpace = tmp;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            int lineNum = 0;
+            foreach (string line in patternSpace.ToArray())
+            {
+                if (rulerMode)
+                {
+                    sb.Append(lineNum++.ToString("D6"));
+                    sb.Append(" ");
+                }
+
+                sb.AppendLine(line);
+            }
+
+            
+
+            if(inplaceMode)
+            {
+                //バックアップを実行
+                File.Copy(path, path + ".bak", true);
+
+                //上書きモードでファイル実行
+                using (StreamWriter sw = new StreamWriter(path, false, enc))
+                {
+                    sw.Write(sb.ToString().TrimEnd('\r', '\n'));
+                    sw.Flush();
+                }
+            }
+            else
+            {
+                Console.Write(sb.ToString().TrimEnd('\r', '\n'));
+            }
+
+        }
+
+        /// <summary>
+        /// kedの中心処理を行う。
+        /// インプットからパターンスペースに指定スクリプトを逐次実行する。
+        /// </summary>
+        /// <param name="script">スクリプト</param>
+        /// <param name="input">入力</param>
+        /// <param name="patternSpace">パターンスペース出力先</param>
+        /// <param name="silentMode">サイレントモードフラグ</param>
+        /// <param name="rulerMode">ルーラーモードフラグ</param>
+        /// <param name="tail">tail引数：この行数分だけ末尾を表示</param>
+        /// <param name="head">head引数：この行数分だけ先頭を表示</param>
+        private static void ked(List<string> script, ref List<string> input, ref List<string> patternSpace, bool silentMode, bool rulerMode, int tail, int head)
+        {
+            // パターンスペースへコピー,サイレントモードなら空のまま
+            if (!silentMode) patternSpace = input;
+
+            //スクリプトを逐次実行
+            input = DispatchScript(script, input, patternSpace);
+
+            //head,tailの制御
+            if (head > 0)
+            {
+                List<string> tmp = new List<string>();
+                for (int i = 0; i < head; i++)
+                {
+                    if (i < patternSpace.Count) tmp.Add(patternSpace[i]);
+                }
+                patternSpace = tmp;
+            }
+            if (tail > 0)
+            {
+                List<string> tmp = new List<string>();
+                for (int i = 0; i < tail; i++)
+                {
+                    if (i < patternSpace.Count) tmp.Add(patternSpace[patternSpace.Count - i - 1]);
+                }
+                tmp.Reverse();
+                patternSpace = tmp;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            int lineNum = 0;
+            foreach (string line in patternSpace.ToArray())
+            {
+                if (rulerMode)
+                {
+                    sb.Append(lineNum++.ToString("D6"));
+                    sb.Append(" ");
+                }
+
+                sb.AppendLine(line);
+            }
+
+            Console.Write(sb.ToString().TrimEnd('\r', '\n'));
+        }
+
+        private static List<string> DispatchScript(List<string> script, List<string> input, List<string> patternSpace)
+        {
+            foreach (string st in script.ToArray())
+            {
+                var adResult = AddressText.TryParse(st);
+
+                Address ad;
+                string cmdTxt;
+                if (adResult.WasSuccessful)
+                {
+                    ad = adResult.Value;
+
+                    cmdTxt = ad.ExtractCommand(st);
+                }
+                else
+                {
+                    ad = new Address();
+
+                    cmdTxt = st;
+                }
+
+                Parser<Command> commandParser = GetCommandParser(cmdTxt);
+
+                var cmdResult = commandParser.TryParse(cmdTxt);
+                if (cmdResult.WasSuccessful)
+                {
+                    var idxs = ad.GetIndex(input);
+                    DispatchCommand(input, patternSpace, cmdResult, idxs);
+                }
+
+                //次のスクリプトを解釈する時、前回のパターンスペースをインプットとする。
+                input = patternSpace;
+            }
+
+            return input;
         }
 
         private static void DispatchCommand(List<string> input, List<string> patternSpace, IResult<Command> cmdResult, int[] idxs)
@@ -631,7 +732,11 @@ namespace ked
             return sb.ToString();
         }
 
-
+        /// <summary>
+        /// コマンド用のパーサーを取得する
+        /// </summary>
+        /// <param name="cmdTxt">コマンドテキスト</param>
+        /// <returns>コマンド用パーサー</returns>
         private static Parser<Command> GetCommandParser(string cmdTxt)
         {
             Parser<Command> cmdHas2ArgParser =
@@ -727,7 +832,8 @@ namespace ked
         /// <param name="enc">エンコード</param>
         private static void ExtractInput(List<string> path, List<string> input, Encoding enc)
         {
-            
+            input.Clear();
+
             // pathが存在するならテキストファイルとして指定エンコードで読み込む。
             if (path.Count != 0)
             {
@@ -754,39 +860,36 @@ namespace ked
                 }
             }
         }
-        
-        /// <summary>
-        /// 標準入力と入力パスから入力文字列を抽出する。
-        /// </summary>
-        /// <param name="path">入力となる指定パス</param>
-        /// <param name="input">出力先</param>
-        /// <param name="enc">エンコード</param>
-        private static void ExtractInput(List<string> path, List<string> input, UnicodeEncoding enc)
-        {
 
-            // pathが存在するならテキストファイルとして指定エンコードで読み込む。
-            if (path.Count != 0)
+        /// <summary>
+        /// 入力パスから文字列を抽出する。
+        /// </summary>
+        /// <param name="path">入力パス</param>
+        /// <param name="input">出力先</param>
+        /// <param name="enc">指定エンコード</param>
+        private static void ExtractInput(string path, List<string> input, Encoding enc)
+        {
+            input.Clear();
+
+            using (StreamReader sr = new StreamReader(path, enc))
             {
-                foreach (string p in path.ToArray())
+                while (sr.Peek() != -1)
                 {
-                    using (StreamReader sr = new StreamReader(p, enc))
-                    {
-                        while (sr.Peek() != -1)
-                        {
-                            input.Add(sr.ReadLine());
-                        }
-                    }
+                    input.Add(sr.ReadLine());
                 }
             }
-            else
+        }
+
+        private static void ExtractInput(List<string> input, Encoding enc)
+        {
+            input.Clear();
+
+            using (TextReader tr = Console.In)
             {
-                using (TextReader tr = Console.In)
+                string line;
+                while ((line = tr.ReadLine()) != null)
                 {
-                    string line;
-                    while ((line = tr.ReadLine()) != null)
-                    {
-                        input.Add(line);
-                    }
+                    input.Add(line);
                 }
             }
         }
